@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Лента постов интересных авторов{% endblock %}
+{% block header %}Лента постов интересных авторов<br>   <br>{% endblock %}
+{% block content %}
+{% load thumbnail %}
+
+    <div class="container">
+        {% include "menu.html" with index=True %}
+
+            {% for post in page %}
+                {% include "post_item.html" with post=post %}
+            {% endfor %}
+
+
+            {% if page.has_other_pages %}
+                {% include "paginator.html" with items=page paginator=paginator %}
+            {% endif %}
+    </div>
+{% endblock %}
