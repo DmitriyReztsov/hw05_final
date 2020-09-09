@@ -11,7 +11,6 @@ from .forms import PostForm, CommentForm
 
 
 """Функция вывода главной страницы"""
-#@cache_page(20)
 def index(request):
     post_list = Post.objects.all()
     paginator = Paginator(post_list, 10)  # показывать по 10 записей на странице.
@@ -40,12 +39,11 @@ def group_posts(request, slug):
 def new_post(request):
     form = PostForm(request.POST or None, files=request.FILES or None)
     
-    if request.method == 'POST':
-        if form.is_valid():
-            new_entry = form.save(commit=False)
-            new_entry.author = request.user
-            new_entry.save()
-            return redirect('index')
+    if form.is_valid():
+        new_entry = form.save(commit=False)
+        new_entry.author = request.user
+        new_entry.save()
+        return redirect('index')
 
     return render(request, 'new_post.html', {'form': form})
 
@@ -87,8 +85,7 @@ def post_edit(request, username, post_id):
     author = get_object_or_404(User, username=username)
     article = get_object_or_404(Post, pk=post_id, 
                 author__username=username) # запрашиваем объект
-
-    # проверка что текущий пользователь — это автор записи
+    """ Проверить, что текущий пользователь — это автор записи. """
     if request.user != author:
         return post_view(request, author, article.id)
 
@@ -106,8 +103,10 @@ def post_edit(request, username, post_id):
 
 
 def page_not_found(request, exception):
-    # Переменная exception содержит отладочную информацию, 
-    # выводить её в шаблон пользователской страницы 404 мы не станем
+    """ Переменная exception содержит отладочную информацию, 
+    выводить её в шаблон пользователской страницы 404 мы не станем.
+    
+    """
     return render(
         request, 
         "misc/404.html", 
@@ -140,8 +139,10 @@ def add_comment(request, username, post_id):
 
 @login_required
 def follow_index(request):
-    # конструкция делает запрос через related_name тех постов, авторы 
-    # которых попадают в список following пользователя
+    """ Конструкция делает запрос через related_name тех постов, авторы 
+    которых попадают в список following пользователя.
+
+    """
     post_list = Post.objects.filter(author__following__user=request.user)
     paginator = Paginator(post_list, 10)  # показывать по 10 записей на странице.
     page_number = request.GET.get('page')  # переменная в URL с номером запрошенной страницы
@@ -152,9 +153,6 @@ def follow_index(request):
 def profile_follow(request, username):
     if request.user.username != username:
         new_follow = Follow.objects.get_or_create(user=request.user, author=User.objects.get(username=username))
-        #new_follow.user = request.user
-        #new_follow.author = User.objects.get(username=username)
-        #new_follow.save()
     return redirect('profile', username=username)
 
 

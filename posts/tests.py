@@ -2,6 +2,8 @@ from django.test import TestCase
 from django.test import Client
 from django.urls import reverse
 import time
+from django.core.files.uploadedfile import SimpleUploadedFile
+import os  # для удаления тестового файла
 
 
 from .models import User, Post, Group, Follow, Comment
@@ -21,15 +23,13 @@ class Profile(TestCase):
         self.client_auth.force_login(self.user)
         self.client_non = Client()
 
-    # метод для проверки постов
-    def check_text(self, post1, post2):
-        # check text
+    """ Проверяет соответствие текста, автора и группы постов. """
+    def check_post(self, post1, post2):
         self.assertEqual(post1.text, post2.text)
-        # chek author
         self.assertEqual(post1.author, post2.author)
-        # check group
         self.assertEqual(post1.group, post2.group)
 
+    """ Проверяет посты на разных страницах. """
     def check_urls(self, post1):
         urls = (
 		    reverse("index"),
@@ -44,66 +44,67 @@ class Profile(TestCase):
                 paginator = response.context.get('paginator')
                 post_new = response.context['page'][0]
                 self.assertEqual(paginator.count, 1)
-            self.check_text(post1, post_new)
+            self.check_post(post1, post_new)
 
+    """ Тестирует доступность страницы автора. """
     def test_profile(self):
-        # запрос к странице автора
         response = self.client_non.get(reverse('profile', 
-                    kwargs={"username": self.user.username,})) 
-        # проверяем, что страница существует
+                    kwargs={"username": self.user.username,}))
         self.assertEqual(response.status_code, 200) 
         
+    """ Тестирует возможность создания поста авторизованным пользователем. """
     def test_new_post_auth(self):
-        # снимаем количество постов до создания нового поста
+        """ Снять количество постов до создания нового поста. """
         posts_before = Post.objects.count()
-        # check access to new_post page
         response_access = self.client_auth.get(reverse('new_post'))
-        # create new post        
+        """ Создать новый пост. """
         response = self.client_auth.post(reverse('new_post'), {
                     'group': self.group.id,
                     'text': "Test text",
                     'author': self.user.id
                     }
                     )
-        # get quantity of posts after post creation
+        """ Получить количество постов после создания нового поста. """
         posts_after = Post.objects.count()
         post_new = Post.objects.get(id=1)
-        
-        # проверяем, что есть доступ к странице создания поста
+        """ Проверить, что есть доступ к странице создания поста. """
         self.assertEqual(response_access.status_code, 200)
         self.assertEqual(response.status_code, 302)
-        # check new post added to DB
+        """ Проверить, что новый пост появился в базе. """
         self.assertNotEqual(posts_before, posts_after)
         self.check_urls(post_new)
 
+    """ Тестирует невозможность создания нового поста анонимным пользователем. """
     def test_new_post_anonimus(self):
-        # снимаем количество постов до попытки создания нового поста
         posts_before = Post.objects.count()
         response = self.client_non.get(reverse('new_post'))
-        # get quantity of posts after post creation attemp
         posts_after = Post.objects.count()
+        """ Проверить, что при попытке создать новый пост пользователь 
+        направляется на страницу регистрации.
+
+        """
         self.assertRedirects(response, reverse('login')+'?next='+reverse('new_post'))
         self.assertEqual(posts_before, posts_after)
 
+    """ Тестирует публикацию поста на связанных страницах. """
     def test_after_pub(self):
-        # создание поста зарегистрированным пользователем
         self.post = Post.objects.create(text="You're talking about things"
                     " I haven't done yet in the past tense. It's driving "
                     "me crazy!", author=self.user)
-        # Проверка после публикации на связанных страницах
         self.check_urls(self.post)
 
+    """ Тестирует возможность авторизованным пользователем отредактировать 
+    свой пост.
+
+    """
     def test_edit_auth(self):
-        self.post = Post.objects.create(text="Test text 1", author=self.user)
-        
-        # Авторизованный пользователь может отредактировать свой пост 
+        self.post = Post.objects.create(text="Test text 1", author=self.user) 
         response = self.client_auth.get(reverse('post_edit', 
                     kwargs={"username": self.user.username, "post_id": self.post.id,}))
         self.assertEqual(response.status_code, 200)
         self.post.text = "Test text 2"
         self.post.save()
-        
-        # Проверка после публикации на связанных страницах
+        """ Проверить отредактированный пост на связанных страницах. """
         self.check_urls(self.post)
 
 class Server_error(TestCase):
@@ -136,15 +137,29 @@ class Img_chek(TestCase):
                     kwargs={"username": post1.author.username, 
                     "post_id": post1.id,}),
 	    )
-
         for url in urls:
             response = self.client.get(url)
             print (url, response)
             self.assertContains(response, '<img')
 
     def test_img_exist(self):
-        with open('media/posts/кухня.jpg','rb') as img:
-            self.post = self.client.post(reverse('new_post'), 
+        """ Получить бинарный код картинки. """
+        byte_im = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x002'
+            b'\x00\x00\x002\x08\x06\x00\x00\x00\x1e?\x88\xb1\x00'
+            b'\x00\x00WIDATx\x9c\xed\xcf\x01\r\xc00\x0c\xc0\xb0~'
+            b'\xfc9\xf7$.-\xbal\x04\xc9\xb33;?pn\x07|\xc5H\x8d\x91'
+            b'\x1a#5Fj\x8c\xd4\x18\xa91Rc\xa4\xc6H\x8d\x91\x1a#5Fj'
+            b'\x8c\xd4\x18\xa91Rc\xa4\xc6H\x8d\x91\x1a#5Fj\x8c\xd4'
+            b'\x18\xa91Rc\xa4\xe6\x05\x07\xb1\x02b\x9eT\xf9\xdf\x00'
+            b'\x00\x00\x00IEND\xaeB`\x82'
+            )
+        img = SimpleUploadedFile(
+            name='test_image.png',
+            content=byte_im,
+            content_type='image/gif',
+        )
+        self.post = self.client.post(reverse('new_post'), 
                     {'author': self.user.id, 
                     'text': 'post with image', 
                     'group': self.group.id, 
@@ -153,8 +168,12 @@ class Img_chek(TestCase):
         self.check_urls2(self.post_new)
 
     def test_non_img(self):
-        with open('media/posts/Test.txt','rb') as img:
-            response = self.client.post(reverse('new_post'), 
+        img = SimpleUploadedFile(
+            name='txt file.txt',
+            content=b'abc',
+            content_type='text/plain',
+        )
+        response = self.client.post(reverse('new_post'), 
                     {'author': self.user.id, 
                     'text': 'post with image', 
                     'group': self.group.id, 
@@ -163,6 +182,9 @@ class Img_chek(TestCase):
                     errors="Загрузите правильное изображение. "
                     "Файл, который вы загрузили, поврежден или "
                     "не является изображением.")
+
+    def tearDown(self):
+        os.remove('media/posts/test_image.png')
 
 
 class CacheTest(TestCase):
@@ -219,11 +241,8 @@ class FollowTest(TestCase):
         paginator = response.context.get('paginator')
         self.assertEqual(paginator.count, 1) # check that a post exists
         post_new = response.context['page'][0]
-        # check text
         self.assertEqual(self.user2post.text, post_new.text)
-        # chek author
         self.assertEqual(self.user2post.author, post_new.author)
-
         user3 = User.objects.create_user(username="not_follow_user",
                     password="4321!Q")
         self.client.logout()
@@ -246,9 +265,7 @@ class CommentTest(TestCase):
         self.client.force_login(self.user)
 
     def test_auth_comment(self):
-        # how many comments are before
         comments_before = Comment.objects.filter(post=self.user2post).count()
-        # create new comment
         response = self.client.post(reverse('add_comment', kwargs={
                         'username': self.user2.username, 
                         'post_id': self.user2post.id,}), 
@@ -256,12 +273,9 @@ class CommentTest(TestCase):
                         'author': self.user.id, 
                         'text': "Test comment"
                         })
-        # quantity of comments after
         comments_after = Comment.objects.filter(post=self.user2post).count()
         comment_new = Comment.objects.get(id=1)
-        # check access
         self.assertEqual(response.status_code, 302)
-        # check new comment added to DB
         self.assertNotEqual(comments_before, comments_after)
         response = self.client.get(reverse('post', kwargs={'username': self.user2.username, 'post_id': self.user2post.id,}))
         self.assertContains(response, self.user2post.text)
