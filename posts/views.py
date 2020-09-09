@@ -31,7 +31,7 @@ def group_posts(request, slug):
     paginator = Paginator(post_list, 10)  # показывать по 10 записей на странице.
     page_number = request.GET.get('page')  # переменная в URL с номером запрошенной страницы
     page = paginator.get_page(page_number)  # получить записи с нужным смещением    
-    return render(request, "group.html", {"group": group, 'page': page, 'paginator': paginator})
+    return render(request, "group.html", {'group': group, 'page': page, 'paginator': paginator})
 
 
 """ view-функция для обработки нового поста"""
@@ -45,7 +45,7 @@ def new_post(request):
         new_entry.save()
         return redirect('index')
 
-    return render(request, 'new_post.html', {'form': form})
+    return render(request, "new_post.html", {'form': form})
 
 
 def profile(request, username):
@@ -61,7 +61,7 @@ def profile(request, username):
     else:
         following = False
     print (request.user)
-    return render(request, 'profile.html',
+    return render(request, "profile.html",
                  {"profile_user": profile_user, 
                   'profile_posts': profile_posts, 'page': page,
                    'paginator': paginator, 'following': following}
@@ -75,7 +75,7 @@ def post_view(request, username, post_id):
     quantity_posts = author.posts.all().count
     form = CommentForm(request.POST or None)
     items = post.comment.all()
-    return render(request, 'post.html', {'author': author, 'post': post, 
+    return render(request, "post.html", {'author': author, 'post': post, 
                 'id': post.id, 'quantity_posts': quantity_posts, 
                 'items': items, 'form': form})
 
@@ -94,10 +94,10 @@ def post_edit(request, username, post_id):
     if request.method == 'POST':
         if form.is_valid():
             form.save()
-            return redirect("post", username=author, post_id=article.id)
+            return redirect('post', username=author, post_id=article.id)
 
     return render(
-        request, 'new_post.html', {'form': form, 'if_edit': True, 
+        request, "new_post.html", {'form': form, 'if_edit': True, 
                         'article': article},
     )
 
@@ -134,7 +134,7 @@ def add_comment(request, username, post_id):
             new_comment.save()
             return redirect('post', username=author, post_id=post.id)
 
-    return render(request, 'comments.html', {'form': form})
+    return render(request, "comments.html", {'form': form})
 
 
 @login_required
