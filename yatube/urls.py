@@ -28,7 +28,7 @@ urlpatterns = [
     path("dont/admin/", admin.site.urls),
     path('about/', include('django.contrib.flatpages.urls')), # flatpages
     path("auth/", include("users.urls")),
-    #  если нужного шаблона для /auth не нашлось в файле users.urls — 
+    #  если нужного шаблона для /auth не нашлось в файле users.urls —
     #  ищем совпадения в файле django.contrib.auth.urls
     path("auth/", include("django.contrib.auth.urls")),
     path('about-us/', views.flatpage, {'url': '/about-us/'}, name='about'),
@@ -39,5 +39,8 @@ urlpatterns = [
     ]
 
 if settings.DEBUG:
+    import debug_toolbar
+
+    urlpatterns += (path("__debug__/", include(debug_toolbar.urls)),) #  глушить, если надо отключить debug tools
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
